@@ -1,0 +1,85 @@
+# docker-compose.yml (Compose v2 syntax — no top-level "version" key)
+
+networks:
+  public:
+  internal:
+
+services:
+  nginx1:
+    image: nginx:alpine
+    container_name: nginx1
+    networks: [internal]
+    volumes:
+      - ./nginx/site1:/usr/share/nginx/html:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  nginx2:
+    image: nginx:alpine
+    container_name: nginx2
+    networks: [internal]
+    volumes:
+      - ./nginx/site2:/usr/share/nginx/html:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+  
+
+  typinggame:
+    build:
+      context: ./typing-game
+    image: typinggame:latest
+    container_name: typinggame
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "nginx -t >/dev/null 2>&1 || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+
+
+
+  haproxy:
+    image: haproxy:2.9-alpine
+    networks: [internal]
+    # keep or remove host port per your preference
+    #ports: ["8080:8080"]
+    depends_on:
+      typinggame:
+        condition: service_healthy
+      nginx1:
+        condition: service_healthy
+      nginx2:
+        condition: service_healthy
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    healthcheck:
+      test: ["CMD-SHELL", "haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  waf:
+    image: docker.io/owasp/modsecurity-crs:nginx
+    container_name: waf
+    restart: "no"              # keep off until stable; we’ll re-enable later
+    ports: ["8081:80"]
+    networks: [public, internal]
+    volumes:
+      - waf_confd:/etc/nginx/conf.d
+      - ./waf/default.conf:/etc/nginx/templates/conf.d/default.conf.template:ro
+    # IMPORTANT: healthcheck with nginx -t (this image has no wget/curl)
+    healthcheck:
+      test: ["CMD-SHELL", "nginx -t >/dev/null 2>&1 || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  waf_confd:  

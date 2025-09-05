@@ -1,0 +1,18 @@
+# Rendered by the entrypoint to: /etc/nginx/modsecurity.d/modsecurity.conf
+
+# Blocking mode
+SecRuleEngine On
+
+# Correct absolute unicode map path for THIS image (you confirmed this path exists)
+SecUnicodeMapFile /etc/modsecurity.d/unicode.mapping 20127
+
+# (Optional logging)
+SecAuditEngine RelevantOnly
+SecAuditLog /var/log/modsec_audit.log
+
+# Sensible defaults
+SecRequestBodyAccess On
+SecResponseBodyAccess On
+
+# Delegate to the image's generated setup (this pulls in Core Rule Set correctly)
+Include /etc/nginx/modsecurity.d/setup.conf
