@@ -1,2 +1,1 @@
-http://localhost:8081
-/game
+http://localhost:8081/game
